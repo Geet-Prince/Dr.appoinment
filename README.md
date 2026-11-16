@@ -48,6 +48,13 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [29. Cancel Appointment](#29-cancel-appointment)
     - [30. Reschedule Appointment](#30-reschedule-appointment)
     - [31. Update Appointment Status](#31-update-appointment-status)
+  - [Prescription Management](#prescription-endpoints-apiprescriptions)
+    - [32. Create Prescription](#32-create-prescription)
+    - [33. Get Prescription by ID](#33-get-prescription-by-id)
+    - [34. Get Prescription by Appointment](#34-get-prescription-by-appointment)
+    - [35. Get Prescriptions by Patient](#35-get-prescriptions-by-patient)
+    - [36. Get Prescriptions by Doctor](#36-get-prescriptions-by-doctor)
+    - [37. Update Prescription](#37-update-prescription)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -94,6 +101,12 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Consultation fee snapshotting at time of booking to maintain historical audit accuracy.
   - Full lifecycle workflow: booking, cancellation with reason, rescheduling to open slots, and administrative status transitions (`CONFIRMED`, `COMPLETED`, `REJECTED`, `NO_SHOW`).
   - Paginated queries by patient, doctor, and status with Spring Data `Pageable`.
+- **Clinical Prescription Management:**
+  - Issue formal digital prescriptions for completed clinical consultations (`COMPLETED` status validation).
+  - Enforce one-to-one mapping between consultation appointment and prescription preventing duplicate entries.
+  - Snapshot diagnosis, medicine regimen, instructions, and audit timestamp.
+  - Paginated prescription history lookup by patient ID and doctor ID.
+  - Updates for diagnoses and treatment plans with persistence.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -1108,6 +1121,144 @@ curl -X PATCH http://localhost:8080/api/appointments/1/status \
 
 ---
 
+## 💊 Prescription Endpoints (`/api/prescriptions`)
+
+### 32. Create Prescription
+
+Creates a digital medical prescription for a completed appointment. Enforces that the appointment exists, is in `COMPLETED` status, and has not already been prescribed.
+
+- **URL:** `POST /api/prescriptions`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "appointmentId": 1,
+  "diagnosis": "Acute Bronchitis and upper respiratory congestion",
+  "medicines": "1. Amoxicillin 500mg - 3 times daily for 7 days\n2. Paracetamol 650mg - as needed for fever\n3. Cough expectorant syrup - 10ml twice daily",
+  "instructions": "Drink plenty of warm liquids. Rest adequately. Return for follow-up if symptoms persist after 5 days."
+}
+```
+
+#### Success Response (`201 Created`)
+```json
+{
+  "id": 1,
+  "appointmentId": 1,
+  "patientId": 1,
+  "patientName": "Jane Doe",
+  "doctorId": 1,
+  "doctorName": "Dr. John Watson",
+  "doctorSpecialization": "Cardiologist",
+  "diagnosis": "Acute Bronchitis and upper respiratory congestion",
+  "medicines": "1. Amoxicillin 500mg - 3 times daily for 7 days\n2. Paracetamol 650mg - as needed for fever\n3. Cough expectorant syrup - 10ml twice daily",
+  "instructions": "Drink plenty of warm liquids. Rest adequately. Return for follow-up if symptoms persist after 5 days.",
+  "prescribedAt": "2026-11-16T14:20:00"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/prescriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appointmentId": 1,
+    "diagnosis": "Acute Bronchitis",
+    "medicines": "Amoxicillin 500mg TDS x 7d",
+    "instructions": "Take after meals. Drink warm fluids."
+  }'
+```
+
+---
+
+### 33. Get Prescription by ID
+
+Retrieves a single prescription record by its ID.
+
+- **URL:** `GET /api/prescriptions/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/prescriptions/1
+```
+
+---
+
+### 34. Get Prescription by Appointment
+
+Retrieves the prescription linked to a specific appointment ID.
+
+- **URL:** `GET /api/prescriptions/appointment/{appointmentId}`
+- **Path Parameter:** `appointmentId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/prescriptions/appointment/1
+```
+
+---
+
+### 35. Get Prescriptions by Patient
+
+Retrieves paginated prescription history for a patient.
+
+- **URL:** `GET /api/prescriptions/patient/{patientId}?page=0&size=10`
+- **Path Parameter:** `patientId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/prescriptions/patient/1?page=0&size=10"
+```
+
+---
+
+### 36. Get Prescriptions by Doctor
+
+Retrieves paginated prescriptions authored by a doctor.
+
+- **URL:** `GET /api/prescriptions/doctor/{doctorId}?page=0&size=10`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/prescriptions/doctor/1?page=0&size=10"
+```
+
+---
+
+### 37. Update Prescription
+
+Updates diagnosis, medicines, or instructions on an existing prescription.
+
+- **URL:** `PUT /api/prescriptions/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "appointmentId": 1,
+  "diagnosis": "Acute Bronchitis - recovering",
+  "medicines": "1. Paracetamol 650mg - SOS\n2. Vitamin C 500mg daily",
+  "instructions": "Continue hydration and rest."
+}
+```
+
+#### cURL Example
+```bash
+curl -X PUT http://localhost:8080/api/prescriptions/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appointmentId": 1,
+    "diagnosis": "Acute Bronchitis - recovering",
+    "medicines": "Vitamin C 500mg daily",
+    "instructions": "Continue hydration."
+  }'
+```
+
+---
+
 ## 🔒 Validation Rules
 
 The application uses Jakarta Validation annotations across all request models:
@@ -1174,6 +1325,15 @@ The application uses Jakarta Validation annotations across all request models:
 | `appointmentDate` | `@NotNull`, `@FutureOrPresent` | `"New appointment date cannot be in the past"` |
 | `startTime` | `@NotNull` | `"New start time is required"` |
 | `reason` | `@Size(max = 500)` | Optional explanation |
+
+### Prescription Validation (`PrescriptionRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `appointmentId` | `@NotNull` | `"Appointment ID is required"` |
+| `diagnosis` | `@NotBlank`, `@Size(max = 1000)` | `"Diagnosis is required"`, `"Diagnosis cannot exceed 1000 characters"` |
+| `medicines` | `@NotBlank`, `@Size(max = 2000)` | `"Medicines and dosage are required"`, `"Medicines cannot exceed 2000 characters"` |
+| `instructions` | `@Size(max = 2000)` | `"Instructions cannot exceed 2000 characters"` |
 
 ---
 
@@ -1283,7 +1443,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 3 — Doctor Management:** Doctor profiles, department relationships, pagination, multi-criteria filtering, unit & MockMvc test suites.
 - [x] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags, unit & MockMvc test suites.
 - [x] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations, status transitions, unit & MockMvc test suites.
-- [ ] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions.
+- [x] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions, completed status enforcement, unit & MockMvc test suites.
 - [ ] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation.
 - [ ] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC).
 - [ ] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation.
