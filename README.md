@@ -55,6 +55,15 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [35. Get Prescriptions by Patient](#35-get-prescriptions-by-patient)
     - [36. Get Prescriptions by Doctor](#36-get-prescriptions-by-doctor)
     - [37. Update Prescription](#37-update-prescription)
+  - [Review & Rating Management](#review--rating-endpoints-apireviews)
+    - [38. Submit Review](#38-submit-review)
+    - [39. Get Review by ID](#39-get-review-by-id)
+    - [40. Get Review by Appointment](#40-get-review-by-appointment)
+    - [41. Get Reviews by Doctor](#41-get-reviews-by-doctor)
+    - [42. Get Doctor Rating Summary](#42-get-doctor-rating-summary)
+    - [43. Get Reviews by Patient](#43-get-reviews-by-patient)
+    - [44. Update Review](#44-update-review)
+    - [45. Delete Review](#45-delete-review)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -107,6 +116,12 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Snapshot diagnosis, medicine regimen, instructions, and audit timestamp.
   - Paginated prescription history lookup by patient ID and doctor ID.
   - Updates for diagnoses and treatment plans with persistence.
+- **Patient Review & Rating System:**
+  - Submit 1-to-5 star ratings and clinical consultation reviews for verified `COMPLETED` appointments.
+  - Enforce strict one-review-per-appointment constraint preventing spam or artificial inflation.
+  - Real-time aggregated doctor rating analytics (average score rounded to 2 decimals, total reviews count).
+  - Paginated review listings by doctor and by patient.
+  - Update and delete operations for review content.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -1259,6 +1274,176 @@ curl -X PUT http://localhost:8080/api/prescriptions/1 \
 
 ---
 
+## ⭐ Review & Rating Endpoints (`/api/reviews`)
+
+### 38. Submit Review
+
+Submits a 1-to-5 star rating and feedback comment for a completed appointment. Enforces that the appointment is in `COMPLETED` status and has not already been reviewed.
+
+- **URL:** `POST /api/reviews`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "appointmentId": 1,
+  "rating": 5,
+  "comment": "Dr. Watson was extraordinarily attentive and accurate with the diagnosis. Highly recommend!"
+}
+```
+
+#### Success Response (`201 Created`)
+```json
+{
+  "id": 1,
+  "appointmentId": 1,
+  "patientId": 1,
+  "patientName": "Jane Doe",
+  "doctorId": 1,
+  "doctorName": "Dr. John Watson",
+  "doctorSpecialization": "Cardiologist",
+  "rating": 5,
+  "comment": "Dr. Watson was extraordinarily attentive and accurate with the diagnosis. Highly recommend!",
+  "createdAt": "2026-11-16T14:30:00"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appointmentId": 1,
+    "rating": 5,
+    "comment": "Dr. Watson was extraordinarily attentive and accurate with the diagnosis. Highly recommend!"
+  }'
+```
+
+---
+
+### 39. Get Review by ID
+
+Retrieves a review record by its primary key ID.
+
+- **URL:** `GET /api/reviews/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/reviews/1
+```
+
+---
+
+### 40. Get Review by Appointment
+
+Retrieves the review associated with a specific appointment ID.
+
+- **URL:** `GET /api/reviews/appointment/{appointmentId}`
+- **Path Parameter:** `appointmentId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/reviews/appointment/1
+```
+
+---
+
+### 41. Get Reviews by Doctor
+
+Retrieves paginated reviews for a doctor, sorted by most recent first.
+
+- **URL:** `GET /api/reviews/doctor/{doctorId}?page=0&size=10`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/reviews/doctor/1?page=0&size=10"
+```
+
+---
+
+### 42. Get Doctor Rating Summary
+
+Retrieves real-time aggregated rating statistics for a doctor including the average score (rounded to 2 decimals) and total review count.
+
+- **URL:** `GET /api/reviews/doctor/{doctorId}/summary`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+
+#### Success Response (`200 OK`)
+```json
+{
+  "doctorId": 1,
+  "doctorName": "Dr. John Watson",
+  "doctorSpecialization": "Cardiologist",
+  "averageRating": 4.85,
+  "totalReviews": 12
+}
+```
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/reviews/doctor/1/summary
+```
+
+---
+
+### 43. Get Reviews by Patient
+
+Retrieves paginated reviews submitted by a specific patient.
+
+- **URL:** `GET /api/reviews/patient/{patientId}?page=0&size=10`
+- **Path Parameter:** `patientId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/reviews/patient/1?page=0&size=10"
+```
+
+---
+
+### 44. Update Review
+
+Allows a patient to update the rating and comment of their existing review.
+
+- **URL:** `PUT /api/reviews/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "rating": 4,
+  "comment": "Follow-up was slightly delayed, but excellent medical advice overall."
+}
+```
+
+#### cURL Example
+```bash
+curl -X PUT http://localhost:8080/api/reviews/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rating": 4,
+    "comment": "Follow-up was slightly delayed, but excellent medical advice overall."
+  }'
+```
+
+---
+
+### 45. Delete Review
+
+Deletes an existing review.
+
+- **URL:** `DELETE /api/reviews/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X DELETE http://localhost:8080/api/reviews/1
+```
+
+---
+
 ## 🔒 Validation Rules
 
 The application uses Jakarta Validation annotations across all request models:
@@ -1334,6 +1519,21 @@ The application uses Jakarta Validation annotations across all request models:
 | `diagnosis` | `@NotBlank`, `@Size(max = 1000)` | `"Diagnosis is required"`, `"Diagnosis cannot exceed 1000 characters"` |
 | `medicines` | `@NotBlank`, `@Size(max = 2000)` | `"Medicines and dosage are required"`, `"Medicines cannot exceed 2000 characters"` |
 | `instructions` | `@Size(max = 2000)` | `"Instructions cannot exceed 2000 characters"` |
+
+### Review Submission Validation (`ReviewRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `appointmentId` | `@NotNull` | `"Appointment ID is required"` |
+| `rating` | `@NotNull`, `@Min(1)`, `@Max(5)` | `"Rating is required"`, `"Rating must be at least 1"`, `"Rating cannot exceed 5"` |
+| `comment` | `@Size(max = 2000)` | `"Comment cannot exceed 2000 characters"` |
+
+### Review Update Validation (`ReviewUpdateRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `rating` | `@NotNull`, `@Min(1)`, `@Max(5)` | `"Rating is required"`, `"Rating must be at least 1"`, `"Rating cannot exceed 5"` |
+| `comment` | `@Size(max = 2000)` | `"Comment cannot exceed 2000 characters"` |
 
 ---
 
@@ -1444,7 +1644,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags, unit & MockMvc test suites.
 - [x] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations, status transitions, unit & MockMvc test suites.
 - [x] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions, completed status enforcement, unit & MockMvc test suites.
-- [ ] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation.
+- [x] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation, unit & MockMvc test suites.
 - [ ] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC).
 - [ ] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation.
 - [ ] **Phase 10 — Notifications & Enhancements:** Automated email/SMS reminders, Dockerization.
