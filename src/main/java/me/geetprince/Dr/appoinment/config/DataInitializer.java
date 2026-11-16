@@ -19,9 +19,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
-    private final DepartmentRepository departmentRepository;
-    private final DoctorRepository doctorRepository;
+    private final PrescriptionRepository prescriptionRepository;
+    private final ReviewRepository reviewRepository;
+    private final AppointmentRepository appointmentRepository;
     private final DoctorAvailabilityRepository availabilityRepository;
+    private final DoctorRepository doctorRepository;
+    private final DepartmentRepository departmentRepository;
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,115 +32,152 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        seedDepartmentsAndDoctors();
-        seedPatients();
-        seedUsers();
-    }
+        log.info("Resetting existing records and seeding Indian hospital data...");
 
-    private void seedDepartmentsAndDoctors() {
-        if (departmentRepository.count() > 0) {
-            log.info("Database already seeded with departments and doctors. Skipping.");
-            return;
-        }
+        // 1. Clean existing records in referential integrity order
+        prescriptionRepository.deleteAllInBatch();
+        reviewRepository.deleteAllInBatch();
+        appointmentRepository.deleteAllInBatch();
+        availabilityRepository.deleteAllInBatch();
+        doctorRepository.deleteAllInBatch();
+        departmentRepository.deleteAllInBatch();
+        patientRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
 
-        log.info("Seeding initial hospital departments, doctors, and schedules...");
+        // 2. Seed Indian Departments
+        Department generalMedicine = departmentRepository.save(new Department(null, "General Medicine", "Primary healthcare, viral fever, seasonal influenza, diabetes, and preventive medicine.", null));
+        Department cardiology = departmentRepository.save(new Department(null, "Cardiology", "Heart disease, hypertension, ECG, chest pain evaluation, and cardiovascular care.", null));
+        Department dermatology = departmentRepository.save(new Department(null, "Dermatology", "Skin, hair, nails, acne treatment, eczema, and allergy consultation.", null));
+        Department pediatrics = departmentRepository.save(new Department(null, "Pediatrics", "Infant, child, and adolescent healthcare, growth monitoring, and immunization.", null));
+        Department neurology = departmentRepository.save(new Department(null, "Neurology", "Brain and spinal care, migraines, vertigo, epilepsy, and neurological disorders.", null));
+        Department orthopedics = departmentRepository.save(new Department(null, "Orthopedics", "Bone and joint health, arthritis, sports injuries, and fracture care.", null));
+        Department gynecology = departmentRepository.save(new Department(null, "Gynecology & Obstetrics", "Women's wellness, maternity care, hormonal balance, and prenatal guidance.", null));
+        Department ent = departmentRepository.save(new Department(null, "ENT", "Ear infections, nasal allergy, chronic sinusitis, throat pain, and hearing care.", null));
 
-        // 1. Departments
-        Department generalMedicine = departmentRepository.save(new Department(null, "General Medicine", "Primary care, internal medicine, fever, and routine health checks.", null));
-        Department cardiology = departmentRepository.save(new Department(null, "Cardiology", "Cardiovascular care, heart disease, blood pressure, and ecg diagnosis.", null));
-        Department dermatology = departmentRepository.save(new Department(null, "Dermatology", "Skin, hair, nails, acne, and rash treatments.", null));
-        Department pediatrics = departmentRepository.save(new Department(null, "Pediatrics", "Infant, child, and adolescent healthcare.", null));
-        Department neurology = departmentRepository.save(new Department(null, "Neurology", "Brain, spine, migraine, and nervous system disorders.", null));
-        Department orthopedics = departmentRepository.save(new Department(null, "Orthopedics", "Bone, joint, fracture, and musculoskeletal medicine.", null));
+        // 3. Seed Indian Doctors
+        Doctor doc1 = createDoctor(
+                "Dr. Rajesh Sharma",
+                "rajesh.sharma@hospital.in",
+                "+91-98111-23456",
+                "Male",
+                "General Physician",
+                "MBBS, MD (General Medicine) - AIIMS New Delhi",
+                15,
+                "MCI-2009-45123",
+                new BigDecimal("500.00"),
+                "Senior General Physician with over 15 years of experience managing viral fevers, seasonal infections, diabetes, and lifestyle diseases.",
+                generalMedicine
+        );
 
-        // 2. Doctors
-        Doctor doc1 = new Doctor();
-        doc1.setFullName("Dr. Sarah Jenkins");
-        doc1.setEmail("sarah.jenkins@hospital.com");
-        doc1.setPhoneNumber("+1-555-1011");
-        doc1.setGender("Female");
-        doc1.setSpecialization("General Physician");
-        doc1.setQualification("MBBS, MD (Internal Medicine)");
-        doc1.setExperienceYears(12);
-        doc1.setLicenseNumber("MED-LIC-001");
-        doc1.setConsultationFee(new BigDecimal("50.00"));
-        doc1.setAbout("Experienced General Practitioner specializing in fever, viral infections, diabetes, and preventive medicine.");
-        doc1.setDepartment(generalMedicine);
-        doc1 = doctorRepository.save(doc1);
+        Doctor doc2 = createDoctor(
+                "Dr. Priya Nair",
+                "priya.nair@hospital.in",
+                "+91-98222-34567",
+                "Female",
+                "Cardiologist",
+                "MBBS, MD, DM (Cardiology) - CMC Vellore",
+                12,
+                "MCI-2012-78901",
+                new BigDecimal("1200.00"),
+                "Expert Cardiologist specializing in preventive cardiology, coronary artery disease, hypertension, and heart rhythm management.",
+                cardiology
+        );
 
-        Doctor doc2 = new Doctor();
-        doc2.setFullName("Dr. Robert Chen");
-        doc2.setEmail("robert.chen@hospital.com");
-        doc2.setPhoneNumber("+1-555-1012");
-        doc2.setGender("Male");
-        doc2.setSpecialization("Cardiologist");
-        doc2.setQualification("MD, DM (Cardiology), FACC");
-        doc2.setExperienceYears(15);
-        doc2.setLicenseNumber("MED-LIC-002");
-        doc2.setConsultationFee(new BigDecimal("120.00"));
-        doc2.setAbout("Board-certified cardiologist focused on coronary artery disease, hypertension, and preventive cardiology.");
-        doc2.setDepartment(cardiology);
-        doc2 = doctorRepository.save(doc2);
+        Doctor doc3 = createDoctor(
+                "Dr. Amit Verma",
+                "amit.verma@hospital.in",
+                "+91-98333-45678",
+                "Male",
+                "Dermatologist",
+                "MBBS, MD (Dermatology) - PGIMER Chandigarh",
+                10,
+                "MCI-2014-34567",
+                new BigDecimal("800.00"),
+                "Renowned Dermatologist specializing in clinical dermatology, skin infections, hair loss treatment, and allergy therapies.",
+                dermatology
+        );
 
-        Doctor doc3 = new Doctor();
-        doc3.setFullName("Dr. Emily Davis");
-        doc3.setEmail("emily.davis@hospital.com");
-        doc3.setPhoneNumber("+1-555-1013");
-        doc3.setGender("Female");
-        doc3.setSpecialization("Dermatologist");
-        doc3.setQualification("MD (Dermatology)");
-        doc3.setExperienceYears(9);
-        doc3.setLicenseNumber("MED-LIC-003");
-        doc3.setConsultationFee(new BigDecimal("80.00"));
-        doc3.setAbout("Specialist in clinical dermatology, skin infections, allergy management, and acne therapies.");
-        doc3.setDepartment(dermatology);
-        doc3 = doctorRepository.save(doc3);
+        Doctor doc4 = createDoctor(
+                "Dr. Ananya Iyer",
+                "ananya.iyer@hospital.in",
+                "+91-98444-56789",
+                "Female",
+                "Pediatrician",
+                "MBBS, MD (Pediatrics) - KEM Hospital Mumbai",
+                14,
+                "MCI-2010-89012",
+                new BigDecimal("700.00"),
+                "Caring pediatrician with deep expertise in neonatal health, childhood vaccinations, asthma, and developmental milestones.",
+                pediatrics
+        );
 
-        Doctor doc4 = new Doctor();
-        doc4.setFullName("Dr. James Wilson");
-        doc4.setEmail("james.wilson@hospital.com");
-        doc4.setPhoneNumber("+1-555-1014");
-        doc4.setGender("Male");
-        doc4.setSpecialization("Pediatrician");
-        doc4.setQualification("MD (Pediatrics), FAAP");
-        doc4.setExperienceYears(14);
-        doc4.setLicenseNumber("MED-LIC-004");
-        doc4.setConsultationFee(new BigDecimal("70.00"));
-        doc4.setAbout("Dedicated pediatrician caring for newborns, toddlers, and adolescents with vaccination and developmental care.");
-        doc4.setDepartment(pediatrics);
-        doc4 = doctorRepository.save(doc4);
+        Doctor doc5 = createDoctor(
+                "Dr. Vikramaditya Rao",
+                "vikram.rao@hospital.in",
+                "+91-98555-67890",
+                "Male",
+                "Neurologist",
+                "MBBS, MD, DM (Neurology) - NIMHANS Bengaluru",
+                16,
+                "MCI-2008-23456",
+                new BigDecimal("1500.00"),
+                "Distinguished Neurologist with extensive research in chronic migraines, stroke recovery, neuropathy, and vertigo management.",
+                neurology
+        );
 
-        Doctor doc5 = new Doctor();
-        doc5.setFullName("Dr. Lisa Patel");
-        doc5.setEmail("lisa.patel@hospital.com");
-        doc5.setPhoneNumber("+1-555-1015");
-        doc5.setGender("Female");
-        doc5.setSpecialization("Neurologist");
-        doc5.setQualification("MD, DM (Neurology)");
-        doc5.setExperienceYears(11);
-        doc5.setLicenseNumber("MED-LIC-005");
-        doc5.setConsultationFee(new BigDecimal("150.00"));
-        doc5.setAbout("Expert in neurological disorders, severe headaches, migraines, stroke prevention, and neuropathy.");
-        doc5.setDepartment(neurology);
-        doc5 = doctorRepository.save(doc5);
+        Doctor doc6 = createDoctor(
+                "Dr. Suresh Kulkarni",
+                "suresh.kulkarni@hospital.in",
+                "+91-98666-78901",
+                "Male",
+                "Orthopedic Surgeon",
+                "MBBS, MS (Orthopedics) - Grant Medical College Mumbai",
+                18,
+                "MCI-2006-12345",
+                new BigDecimal("1000.00"),
+                "Senior Orthopedic Surgeon focusing on knee and hip joint pain, arthritis management, ligament injuries, and spine care.",
+                orthopedics
+        );
 
-        Doctor doc6 = new Doctor();
-        doc6.setFullName("Dr. Michael Brown");
-        doc6.setEmail("michael.brown@hospital.com");
-        doc6.setPhoneNumber("+1-555-1016");
-        doc6.setGender("Male");
-        doc6.setSpecialization("Orthopedic Surgeon");
-        doc6.setQualification("MS (Orthopedics)");
-        doc6.setExperienceYears(16);
-        doc6.setLicenseNumber("MED-LIC-006");
-        doc6.setConsultationFee(new BigDecimal("110.00"));
-        doc6.setAbout("Specialist in sports injuries, joint replacements, arthritis, and bone fracture treatments.");
-        doc6.setDepartment(orthopedics);
-        doc6 = doctorRepository.save(doc6);
+        Doctor doc7 = createDoctor(
+                "Dr. Sunita Deshmukh",
+                "sunita.deshmukh@hospital.in",
+                "+91-98777-89012",
+                "Female",
+                "Gynecologist",
+                "MBBS, MS (Obstetrics & Gynecology) - JIPMER Puducherry",
+                13,
+                "MCI-2011-56789",
+                new BigDecimal("900.00"),
+                "Compassionate gynecologist dedicated to women's reproductive health, prenatal care, PCOS/PCOD management, and safe motherhood.",
+                gynecology
+        );
 
-        // 3. Weekly Availability for all doctors (Mon-Fri 09:00 - 17:00, 30 min slots)
-        List<Doctor> doctors = List.of(doc1, doc2, doc3, doc4, doc5, doc6);
-        List<DayOfWeek> workDays = List.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY);
+        Doctor doc8 = createDoctor(
+                "Dr. Rohan Gupta",
+                "rohan.gupta@hospital.in",
+                "+91-98888-90123",
+                "Male",
+                "ENT Specialist",
+                "MBBS, MS (ENT) - Maulana Azad Medical College Delhi",
+                11,
+                "MCI-2013-67890",
+                new BigDecimal("600.00"),
+                "ENT surgeon specializing in sinus ailments, chronic throat infections, tonsillitis, vertigo, and pediatric ear care.",
+                ent
+        );
+
+        List<Doctor> doctors = List.of(doc1, doc2, doc3, doc4, doc5, doc6, doc7, doc8);
+
+        // 4. Seed Weekly Availability (Monday to Saturday: 09:00 - 18:00, 30-min slots)
+        List<DayOfWeek> workDays = List.of(
+                DayOfWeek.MONDAY,
+                DayOfWeek.TUESDAY,
+                DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY,
+                DayOfWeek.FRIDAY,
+                DayOfWeek.SATURDAY
+        );
 
         for (Doctor doc : doctors) {
             for (DayOfWeek day : workDays) {
@@ -146,7 +186,7 @@ public class DataInitializer implements CommandLineRunner {
                         doc,
                         day,
                         LocalTime.of(9, 0),
-                        LocalTime.of(17, 0),
+                        LocalTime.of(18, 0),
                         30,
                         true
                 );
@@ -154,38 +194,75 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
-        log.info("Successfully seeded 6 departments, 6 doctors, and 30 availability shifts.");
-    }
+        // 5. Seed Indian Patients
+        Patient p1 = new Patient();
+        p1.setFullName("Rahul Verma");
+        p1.setEmail("rahul.verma@gmail.com");
+        p1.setPhoneNumber("+91-99887-76655");
+        p1.setAge(29);
+        p1.setGender("Male");
+        patientRepository.save(p1);
 
-    private void seedPatients() {
-        if (patientRepository.count() > 0) {
-            return;
-        }
+        Patient p2 = new Patient();
+        p2.setFullName("Pooja Sharma");
+        p2.setEmail("pooja.sharma@gmail.com");
+        p2.setPhoneNumber("+91-98776-65544");
+        p2.setAge(34);
+        p2.setGender("Female");
+        patientRepository.save(p2);
 
-        Patient patient = new Patient();
-        patient.setFullName("John Doe");
-        patient.setEmail("john.doe@example.com");
-        patient.setPhoneNumber("+1-555-0199");
-        patient.setAge(32);
-        patient.setGender("Male");
-        patientRepository.save(patient);
+        Patient p3 = new Patient();
+        p3.setFullName("Arjun Patel");
+        p3.setEmail("arjun.patel@gmail.com");
+        p3.setPhoneNumber("+91-97665-54433");
+        p3.setAge(45);
+        p3.setGender("Male");
+        patientRepository.save(p3);
 
-        log.info("Successfully seeded demo patient: John Doe (ID: 1).");
-    }
-
-    private void seedUsers() {
-        if (userRepository.count() > 0) {
-            return;
-        }
-
+        // 6. Seed Application Users
         User admin = User.builder()
-                .email("admin@hospital.com")
+                .email("admin@hospital.in")
                 .password(passwordEncoder.encode("Admin@123"))
                 .role(UserRole.ADMIN)
                 .enabled(true)
                 .build();
         userRepository.save(admin);
 
-        log.info("Successfully seeded admin user: admin@hospital.com.");
+        User doctorUser = User.builder()
+                .email("rajesh.sharma@hospital.in")
+                .password(passwordEncoder.encode("Doctor@123"))
+                .role(UserRole.DOCTOR)
+                .enabled(true)
+                .build();
+        userRepository.save(doctorUser);
+
+        User patientUser = User.builder()
+                .email("rahul.verma@gmail.com")
+                .password(passwordEncoder.encode("Patient@123"))
+                .role(UserRole.PATIENT)
+                .enabled(true)
+                .build();
+        userRepository.save(patientUser);
+
+        log.info("Successfully seeded 8 Indian departments, 8 doctors, 48 shifts, 3 patients, and system users.");
+    }
+
+    private Doctor createDoctor(String fullName, String email, String phoneNumber, String gender,
+                                String specialization, String qualification, Integer experienceYears,
+                                String licenseNumber, BigDecimal consultationFee, String about,
+                                Department department) {
+        Doctor doc = new Doctor();
+        doc.setFullName(fullName);
+        doc.setEmail(email);
+        doc.setPhoneNumber(phoneNumber);
+        doc.setGender(gender);
+        doc.setSpecialization(specialization);
+        doc.setQualification(qualification);
+        doc.setExperienceYears(experienceYears);
+        doc.setLicenseNumber(licenseNumber);
+        doc.setConsultationFee(consultationFee);
+        doc.setAbout(about);
+        doc.setDepartment(department);
+        return doctorRepository.save(doc);
     }
 }
