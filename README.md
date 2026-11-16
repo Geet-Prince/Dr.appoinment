@@ -77,7 +77,9 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
   - [Database Configuration](#database-configuration)
   - [Application Properties](#application-properties)
   - [Running the Application](#running-the-application)
-- [Upcoming Roadmap](#-upcoming-roadmap)
+- [Deployment with Docker & Docker Compose](#-deployment-with-docker--docker-compose)
+- [Automated Appointment Reminders](#-automated-appointment-reminders)
+- [Implementation Progress & Roadmap](#-implementation-progress--roadmap)
 
 ---
 
@@ -1837,6 +1839,47 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 
 ---
 
+## 🐳 Deployment with Docker & Docker Compose
+
+Dr.Appoinment includes a production-ready, multi-stage `Dockerfile` and `docker-compose.yml` to orchestrate both the Spring Boot application and PostgreSQL database.
+
+### 1. Prerequisites
+- Docker & Docker Compose installed.
+- Your Google Gemini API key:
+  ```bash
+  export GEMINI_API_KEY="your_actual_gemini_api_key"
+  ```
+
+### 2. Start the Complete Stack
+```bash
+docker compose up -d --build
+```
+This automatically:
+- Spawns PostgreSQL 17 on port `5432` with automated health checks and persistent storage.
+- Builds the application using multi-stage Eclipse Temurin Java 27 layers.
+- Runs the application on port `8080`.
+
+### 3. View Application Logs
+```bash
+docker compose logs -f app
+```
+
+### 4. Stop the Environment
+```bash
+docker compose down
+```
+
+---
+
+## ⏰ Automated Appointment Reminders
+
+The application features an automated background cron daemon (`@Scheduled(cron = "${app.reminders.cron:0 0 8 * * ?}")`) that:
+- Executes daily at 08:00 AM.
+- Identifies all `CONFIRMED` appointments occurring the next calendar day (`LocalDate.now().plusDays(1)`).
+- Logs and dispatches proactive reminder notifications to patients and doctors with time, room, and appointment details.
+
+---
+
 ## 🗺️ Implementation Progress & Roadmap
 
 - [x] **Phase 1 — Patient Management:** CRUD, unique constraints, DTO separation, validation.
@@ -1848,7 +1891,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation, unit & MockMvc test suites.
 - [x] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC), unit & MockMvc test suites.
 - [x] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation, unit & MockMvc test suites.
-- [ ] **Phase 10 — Notifications & Enhancements:** Automated email/SMS reminders, Dockerization.
+- [x] **Phase 10 — Notifications & Enhancements:** Automated background reminder scheduler, multi-stage Dockerfile, Docker Compose production orchestration.
 
 ---
 

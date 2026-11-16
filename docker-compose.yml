@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dr_appointment_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dr_appointment
+      POSTGRES_USER: ${DB_USERNAME:-geet}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-0}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-geet} -d dr_appointment"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dr_appointment_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dr_appointment
+      DB_USERNAME: ${DB_USERNAME:-geet}
+      DB_PASSWORD: ${DB_PASSWORD:-0}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-your_api_key_here}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+volumes:
+  postgres_data:

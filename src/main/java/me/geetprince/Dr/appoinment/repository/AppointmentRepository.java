@@ -66,4 +66,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("endTime") LocalTime endTime,
             @Param("excludeId") Long excludeId
     );
+
+    @Query("SELECT a FROM Appointment a " +
+            "JOIN FETCH a.patient " +
+            "JOIN FETCH a.doctor " +
+            "WHERE a.appointmentDate = :date " +
+            "AND a.status = :status")
+    List<Appointment> findByAppointmentDateAndStatusWithDetails(
+            @Param("date") LocalDate date,
+            @Param("status") AppointmentStatus status
+    );
 }
