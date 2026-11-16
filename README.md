@@ -33,6 +33,12 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [16. Search Doctors (Multi-Criteria)](#16-search-doctors-multi-criteria)
     - [17. Update Doctor](#17-update-doctor)
     - [18. Delete Doctor](#18-delete-doctor)
+  - [Doctor Availability & Schedule](#doctor-availability-endpoints-apidoctorsdoctorid)
+    - [19. Add Working Schedule](#19-add-working-schedule)
+    - [20. Get Doctor Schedule](#20-get-doctor-schedule)
+    - [21. Get Available Slots for Date](#21-get-available-slots-for-date)
+    - [22. Update Working Schedule](#22-update-working-schedule)
+    - [23. Delete Working Schedule](#23-delete-working-schedule)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -68,6 +74,11 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Multi-criteria dynamic filtering by name, specialization, department ID, minimum experience, and maximum consultation fee.
   - Retrieve doctors by department.
   - Full profile updates and cascading-safe deletions.
+- **Intelligent Doctor Availability & Dynamic Slot Engine:**
+  - Configure recurring weekly shifts per weekday (`DayOfWeek`) with custom start and end times.
+  - Granular slot durations (e.g. 15, 30, 45, 60 minutes).
+  - Database-level shift overlap prevention preventing double-scheduling on the same weekday.
+  - Dynamic slot generator calculating bookable appointment intervals for any calendar date (`LocalDate`), automatically adjusting for past times on the current day.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -198,6 +209,16 @@ Dr.appoinment/
 | `GET` | `/api/doctors/search` | Multi-criteria search (`?name=&specialization=&departmentId=&minExperience=&maxFee=`) | `200 OK` |
 | `PUT` | `/api/doctors/{id}` | Update doctor profile | `200 OK` |
 | `DELETE` | `/api/doctors/{id}` | Delete doctor profile by ID | `204 No Content` |
+
+### Doctor Availability Endpoints (`/api/doctors/{doctorId}`)
+
+| HTTP Method | Endpoint | Description | Status Code |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/doctors/{doctorId}/availability` | Add weekly shift schedule | `201 Created` |
+| `GET` | `/api/doctors/{doctorId}/availability` | Retrieve doctor's full weekly schedule | `200 OK` |
+| `GET` | `/api/doctors/{doctorId}/slots` | Retrieve calculated available slots for date (`?date=YYYY-MM-DD`) | `200 OK` |
+| `PUT` | `/api/doctors/{doctorId}/availability/{availabilityId}` | Update schedule shift | `200 OK` |
+| `DELETE` | `/api/doctors/{doctorId}/availability/{availabilityId}` | Delete schedule shift | `204 No Content` |
 
 ---
 
@@ -694,9 +715,143 @@ curl -X DELETE http://localhost:8080/api/doctors/1
 
 ---
 
+### 19. Add Working Schedule
+
+Configures a recurring weekly consultation shift for a doctor on a specific day of the week. Enforces start time < end time and checks for shift overlaps.
+
+- **URL:** `POST /api/doctors/{doctorId}/availability`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "dayOfWeek": "MONDAY",
+  "startTime": "09:00:00",
+  "endTime": "13:00:00",
+  "slotDurationMinutes": 30,
+  "isAvailable": true
+}
+```
+
+#### Success Response (`201 Created`)
+```json
+{
+  "id": 1,
+  "doctorId": 1,
+  "doctorName": "Dr. John Watson",
+  "dayOfWeek": "MONDAY",
+  "startTime": "09:00:00",
+  "endTime": "13:00:00",
+  "slotDurationMinutes": 30,
+  "isAvailable": true
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/doctors/1/availability \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dayOfWeek": "MONDAY",
+    "startTime": "09:00:00",
+    "endTime": "13:00:00",
+    "slotDurationMinutes": 30,
+    "isAvailable": true
+  }'
+```
+
+---
+
+### 20. Get Doctor Schedule
+
+Retrieves all configured weekly shifts for a doctor.
+
+- **URL:** `GET /api/doctors/{doctorId}/availability`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/doctors/1/availability
+```
+
+---
+
+### 21. Get Available Slots for Date
+
+Calculates and returns granular, bookable consultation time slots for any target calendar date.
+
+- **URL:** `GET /api/doctors/{doctorId}/slots?date=YYYY-MM-DD`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+- **Query Parameter:** `date` (ISO-8601 date, e.g., `2026-11-23`)
+
+#### Success Response (`200 OK`)
+```json
+[
+  {
+    "startTime": "09:00:00",
+    "endTime": "09:30:00",
+    "isAvailable": true
+  },
+  {
+    "startTime": "09:30:00",
+    "endTime": "10:00:00",
+    "isAvailable": true
+  }
+]
+```
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/doctors/1/slots?date=2026-11-23"
+```
+
+---
+
+### 22. Update Working Schedule
+
+Updates an existing consultation shift's hours or active status with overlap checks.
+
+- **URL:** `PUT /api/doctors/{doctorId}/availability/{availabilityId}`
+- **Path Parameters:**
+  - `doctorId` (Long, e.g., `1`)
+  - `availabilityId` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### cURL Example
+```bash
+curl -X PUT http://localhost:8080/api/doctors/1/availability/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dayOfWeek": "MONDAY",
+    "startTime": "10:00:00",
+    "endTime": "14:00:00",
+    "slotDurationMinutes": 30,
+    "isAvailable": true
+  }'
+```
+
+---
+
+### 23. Delete Working Schedule
+
+Deletes a doctor's scheduled shift.
+
+- **URL:** `DELETE /api/doctors/{doctorId}/availability/{availabilityId}`
+- **Path Parameters:**
+  - `doctorId` (Long, e.g., `1`)
+  - `availabilityId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X DELETE http://localhost:8080/api/doctors/1/availability/1
+```
+
+---
+
 ## 🔒 Validation Rules
 
-The application uses Jakarta Validation annotations on `PatientRequest`, `DepartmentRequest`, and `DoctorRequest`:
+The application uses Jakarta Validation annotations on `PatientRequest`, `DepartmentRequest`, `DoctorRequest`, and `DoctorAvailabilityRequest`:
 
 ### Patient Validation (`PatientRequest`)
 
@@ -731,6 +886,16 @@ The application uses Jakarta Validation annotations on `PatientRequest`, `Depart
 | `about` | `@Size(max = 2000)` | `"About text cannot exceed 2000 characters"` |
 | `profileImageUrl` | `@Size(max = 500)` | `"Profile image URL cannot exceed 500 characters"` |
 | `departmentId` | `@NotNull` | `"Department ID is required"` |
+
+### Doctor Availability Validation (`DoctorAvailabilityRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `dayOfWeek` | `@NotNull` | `"Day of week is required"` |
+| `startTime` | `@NotNull` | `"Start time is required"` |
+| `endTime` | `@NotNull` | `"End time is required"` (Must be after `startTime`) |
+| `slotDurationMinutes` | `@NotNull`, `@Min(10)`, `@Max(120)` | `"Slot duration in minutes is required"`, `"Slot duration must be between 10 and 120 minutes"` |
+| `isAvailable` | Optional (Boolean) | Defaults to `true` |
 
 ---
 
@@ -838,7 +1003,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 1 — Patient Management:** CRUD, unique constraints, DTO separation, validation.
 - [x] **Phase 2 — Department Management:** CRUD, unique name check, fuzzy search, unit & MockMvc test suites.
 - [x] **Phase 3 — Doctor Management:** Doctor profiles, department relationships, pagination, multi-criteria filtering, unit & MockMvc test suites.
-- [ ] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags.
+- [x] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags, unit & MockMvc test suites.
 - [ ] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations.
 - [ ] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions.
 - [ ] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation.

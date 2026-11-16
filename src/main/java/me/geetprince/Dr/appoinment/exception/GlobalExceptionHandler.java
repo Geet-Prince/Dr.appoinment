@@ -45,4 +45,21 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(errorResponse);
     }
+
+    // Handle doctor unavailable (400)
+    @ExceptionHandler(DoctorUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleDoctorUnavailable(
+            DoctorUnavailableException exception) {
+
+        Map<String, Object> errorResponse = Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.BAD_REQUEST.value(),
+                "error", "Doctor Unavailable",
+                "message", exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
 }
