@@ -144,33 +144,64 @@ Dr.appoinment/
 ├── src/
 │   ├── main/
 │   │   ├── java/me/geetprince/Dr/appoinment/
-│   │   │   ├── Application.java                 # Main Spring Boot Application Entry Point
+│   │   │   ├── Application.java                             # Main Spring Boot Application Entry Point
 │   │   │   ├── config/
-│   │   │   │   └── SecurityConfig.java          # Security & CORS/CSRF Configuration
+│   │   │   │   └── SecurityConfig.java                      # Security & CORS/CSRF Configuration
 │   │   │   ├── controller/
-│   │   │   │   └── PatientController.java       # REST Controller for /api/patients
+│   │   │   │   ├── DepartmentController.java                # REST Controller for /api/departments
+│   │   │   │   ├── DoctorAvailabilityController.java        # REST Controller for /api/doctors/{id}/availability & slots
+│   │   │   │   ├── DoctorController.java                    # REST Controller for /api/doctors
+│   │   │   │   └── PatientController.java                   # REST Controller for /api/patients
 │   │   │   ├── dto/
-│   │   │   │   ├── PatientRequest.java          # Validated Request Payload DTO
-│   │   │   │   └── PatientResponse.java         # API Response Data DTO
+│   │   │   │   ├── DepartmentRequest.java                   # Validated Department Request DTO
+│   │   │   │   ├── DepartmentResponse.java                  # Department API Response DTO
+│   │   │   │   ├── DoctorAvailabilityRequest.java           # Validated Doctor Shift Schedule Request DTO
+│   │   │   │   ├── DoctorAvailabilityResponse.java          # Doctor Shift Schedule Response DTO
+│   │   │   │   ├── DoctorRequest.java                       # Validated Doctor Registration/Update DTO
+│   │   │   │   ├── DoctorResponse.java                      # Doctor Profile Response DTO
+│   │   │   │   ├── PatientRequest.java                      # Validated Patient Request Payload DTO
+│   │   │   │   ├── PatientResponse.java                     # Patient API Response Data DTO
+│   │   │   │   └── TimeSlotResponse.java                    # Dynamic Consultation Slot Response DTO
 │   │   │   ├── exception/
-│   │   │   │   ├── DuplicateResourceException.java  # Custom 409 Conflict Exception
-│   │   │   │   ├── GlobalExceptionHandler.java      # Centralized @RestControllerAdvice
-│   │   │   │   └── ResourceNotFoundException.java   # Custom 404 Not Found Exception
+│   │   │   │   ├── DoctorUnavailableException.java          # Custom 400 Doctor Unavailable Exception
+│   │   │   │   ├── DuplicateResourceException.java          # Custom 409 Conflict Exception
+│   │   │   │   ├── GlobalExceptionHandler.java              # Centralized @RestControllerAdvice
+│   │   │   │   └── ResourceNotFoundException.java           # Custom 404 Not Found Exception
 │   │   │   ├── models/
-│   │   │   │   └── Patient.java                 # JPA Entity for "patients" table
+│   │   │   │   ├── Department.java                          # JPA Entity for "departments" table
+│   │   │   │   ├── Doctor.java                              # JPA Entity for "doctors" table
+│   │   │   │   ├── DoctorAvailability.java                  # JPA Entity for "doctor_availabilities" table
+│   │   │   │   └── Patient.java                             # JPA Entity for "patients" table
 │   │   │   ├── repository/
-│   │   │   │   └── PatientRepository.java       # Spring Data JPA Repository
+│   │   │   │   ├── DepartmentRepository.java                # Spring Data JPA Repository for Department
+│   │   │   │   ├── DoctorAvailabilityRepository.java        # Spring Data JPA Repository for Availability
+│   │   │   │   ├── DoctorRepository.java                    # Spring Data JPA Repository for Doctor
+│   │   │   │   └── PatientRepository.java                   # Spring Data JPA Repository for Patient
 │   │   │   └── service/
-│   │   │       └── PatientService.java          # Business Logic & Entity-to-DTO Mapping
+│   │   │       ├── DepartmentService.java                   # Department Business Logic
+│   │   │       ├── DoctorAvailabilityService.java           # Schedule & Slot Calculation Logic
+│   │   │       ├── DoctorService.java                       # Doctor Business Logic & Multi-Criteria Search
+│   │   │       └── PatientService.java                      # Patient Business Logic
 │   │   └── resources/
-│   │       └── application.properties           # PostgreSQL, JPA & Spring AI Configuration
+│   │       └── application.properties                       # PostgreSQL, JPA & Spring AI Configuration
 │   └── test/
-│       └── java/me/geetprince/Dr/appoinment/
-│           └── ApplicationTests.java            # Spring Boot Context Tests
-├── mvnw                                         # Unix Maven Wrapper
-├── mvnw.cmd                                     # Windows Maven Wrapper
-├── pom.xml                                      # Maven Dependencies & Plugins
-└── README.md                                    # Project Documentation
+│       ├── java/me/geetprince/Dr/appoinment/
+│       │   ├── ApplicationTests.java                        # Spring Boot Context Tests
+│       │   ├── controller/
+│       │   │   ├── DepartmentControllerTest.java            # MockMvc tests for DepartmentController
+│       │   │   ├── DoctorAvailabilityControllerTest.java    # MockMvc tests for DoctorAvailabilityController
+│       │   │   └── DoctorControllerTest.java                # MockMvc tests for DoctorController
+│       │   └── service/
+│       │       ├── DepartmentServiceTest.java               # Unit tests for DepartmentService
+│       │       ├── DoctorAvailabilityServiceTest.java       # Unit tests for DoctorAvailabilityService
+│       │       └── DoctorServiceTest.java                   # Unit tests for DoctorService
+│       └── resources/
+│           └── mockito-extensions/
+│               └── org.mockito.plugins.MockMaker            # Java 27 Mockito Subclass MockMaker
+├── mvnw                                                     # Unix Maven Wrapper
+├── mvnw.cmd                                                 # Windows Maven Wrapper
+├── pom.xml                                                  # Maven Dependencies & Plugins
+└── README.md                                                # Project Documentation
 ```
 
 ---
