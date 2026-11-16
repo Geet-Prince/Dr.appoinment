@@ -39,6 +39,15 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [21. Get Available Slots for Date](#21-get-available-slots-for-date)
     - [22. Update Working Schedule](#22-update-working-schedule)
     - [23. Delete Working Schedule](#23-delete-working-schedule)
+  - [Appointment Management & Booking](#appointment-endpoints-apiappointments)
+    - [24. Book Appointment](#24-book-appointment)
+    - [25. Get Appointment by ID](#25-get-appointment-by-id)
+    - [26. Get Appointments by Patient](#26-get-appointments-by-patient)
+    - [27. Get Appointments by Doctor](#27-get-appointments-by-doctor)
+    - [28. Filter Appointments by Status](#28-filter-appointments-by-status)
+    - [29. Cancel Appointment](#29-cancel-appointment)
+    - [30. Reschedule Appointment](#30-reschedule-appointment)
+    - [31. Update Appointment Status](#31-update-appointment-status)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -79,6 +88,12 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Granular slot durations (e.g. 15, 30, 45, 60 minutes).
   - Database-level shift overlap prevention preventing double-scheduling on the same weekday.
   - Dynamic slot generator calculating bookable appointment intervals for any calendar date (`LocalDate`), automatically adjusting for past times on the current day.
+- **Concurrency-Safe Clinical Appointment Scheduling Engine:**
+  - Atomic appointment booking with comprehensive validation pipeline (patient, doctor, schedule alignment, past date/time prevention).
+  - Double-booking prevention queries ensuring neither doctor nor patient can have overlapping active bookings (`PENDING` / `CONFIRMED`).
+  - Consultation fee snapshotting at time of booking to maintain historical audit accuracy.
+  - Full lifecycle workflow: booking, cancellation with reason, rescheduling to open slots, and administrative status transitions (`CONFIRMED`, `COMPLETED`, `REJECTED`, `NO_SHOW`).
+  - Paginated queries by patient, doctor, and status with Spring Data `Pageable`.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -148,11 +163,16 @@ Dr.appoinment/
 │   │   │   ├── config/
 │   │   │   │   └── SecurityConfig.java                      # Security & CORS/CSRF Configuration
 │   │   │   ├── controller/
+│   │   │   │   ├── AppointmentController.java               # REST Controller for /api/appointments
 │   │   │   │   ├── DepartmentController.java                # REST Controller for /api/departments
 │   │   │   │   ├── DoctorAvailabilityController.java        # REST Controller for /api/doctors/{id}/availability & slots
 │   │   │   │   ├── DoctorController.java                    # REST Controller for /api/doctors
 │   │   │   │   └── PatientController.java                   # REST Controller for /api/patients
 │   │   │   ├── dto/
+│   │   │   │   ├── AppointmentBookingRequest.java           # Validated Appointment Booking DTO
+│   │   │   │   ├── AppointmentRescheduleRequest.java        # Validated Appointment Reschedule DTO
+│   │   │   │   ├── AppointmentResponse.java                 # Complete Appointment Response DTO
+│   │   │   │   ├── AppointmentStatusUpdateRequest.java      # Validated Status Transition DTO
 │   │   │   │   ├── DepartmentRequest.java                   # Validated Department Request DTO
 │   │   │   │   ├── DepartmentResponse.java                  # Department API Response DTO
 │   │   │   │   ├── DoctorAvailabilityRequest.java           # Validated Doctor Shift Schedule Request DTO
@@ -163,21 +183,27 @@ Dr.appoinment/
 │   │   │   │   ├── PatientResponse.java                     # Patient API Response Data DTO
 │   │   │   │   └── TimeSlotResponse.java                    # Dynamic Consultation Slot Response DTO
 │   │   │   ├── exception/
+│   │   │   │   ├── AppointmentConflictException.java        # Custom 409 Appointment Conflict Exception
 │   │   │   │   ├── DoctorUnavailableException.java          # Custom 400 Doctor Unavailable Exception
 │   │   │   │   ├── DuplicateResourceException.java          # Custom 409 Conflict Exception
 │   │   │   │   ├── GlobalExceptionHandler.java              # Centralized @RestControllerAdvice
+│   │   │   │   ├── InvalidAppointmentException.java         # Custom 400 Invalid Appointment Exception
 │   │   │   │   └── ResourceNotFoundException.java           # Custom 404 Not Found Exception
 │   │   │   ├── models/
+│   │   │   │   ├── Appointment.java                         # JPA Entity for "appointments" table
+│   │   │   │   ├── AppointmentStatus.java                   # Enum for appointment lifecycle states
 │   │   │   │   ├── Department.java                          # JPA Entity for "departments" table
 │   │   │   │   ├── Doctor.java                              # JPA Entity for "doctors" table
 │   │   │   │   ├── DoctorAvailability.java                  # JPA Entity for "doctor_availabilities" table
 │   │   │   │   └── Patient.java                             # JPA Entity for "patients" table
 │   │   │   ├── repository/
+│   │   │   │   ├── AppointmentRepository.java               # Spring Data JPA Repository for Appointment
 │   │   │   │   ├── DepartmentRepository.java                # Spring Data JPA Repository for Department
 │   │   │   │   ├── DoctorAvailabilityRepository.java        # Spring Data JPA Repository for Availability
 │   │   │   │   ├── DoctorRepository.java                    # Spring Data JPA Repository for Doctor
 │   │   │   │   └── PatientRepository.java                   # Spring Data JPA Repository for Patient
 │   │   │   └── service/
+│   │   │       ├── AppointmentService.java                  # Appointment Business Engine & Conflict Prevention
 │   │   │       ├── DepartmentService.java                   # Department Business Logic
 │   │   │       ├── DoctorAvailabilityService.java           # Schedule & Slot Calculation Logic
 │   │   │       ├── DoctorService.java                       # Doctor Business Logic & Multi-Criteria Search
@@ -188,10 +214,12 @@ Dr.appoinment/
 │       ├── java/me/geetprince/Dr/appoinment/
 │       │   ├── ApplicationTests.java                        # Spring Boot Context Tests
 │       │   ├── controller/
+│       │   │   ├── AppointmentControllerTest.java           # MockMvc tests for AppointmentController
 │       │   │   ├── DepartmentControllerTest.java            # MockMvc tests for DepartmentController
 │       │   │   ├── DoctorAvailabilityControllerTest.java    # MockMvc tests for DoctorAvailabilityController
 │       │   │   └── DoctorControllerTest.java                # MockMvc tests for DoctorController
 │       │   └── service/
+│       │       ├── AppointmentServiceTest.java              # Unit tests for AppointmentService
 │       │       ├── DepartmentServiceTest.java               # Unit tests for DepartmentService
 │       │       ├── DoctorAvailabilityServiceTest.java       # Unit tests for DoctorAvailabilityService
 │       │       └── DoctorServiceTest.java                   # Unit tests for DoctorService
@@ -250,6 +278,19 @@ Dr.appoinment/
 | `GET` | `/api/doctors/{doctorId}/slots` | Retrieve calculated available slots for date (`?date=YYYY-MM-DD`) | `200 OK` |
 | `PUT` | `/api/doctors/{doctorId}/availability/{availabilityId}` | Update schedule shift | `200 OK` |
 | `DELETE` | `/api/doctors/{doctorId}/availability/{availabilityId}` | Delete schedule shift | `204 No Content` |
+
+### Appointment Endpoints (`/api/appointments`)
+
+| HTTP Method | Endpoint | Description | Status Code |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/appointments` | Book a new appointment | `201 Created` |
+| `GET` | `/api/appointments/{id}` | Retrieve appointment by ID | `200 OK` |
+| `GET` | `/api/appointments/patient/{patientId}` | Retrieve paginated appointments for a patient | `200 OK` |
+| `GET` | `/api/appointments/doctor/{doctorId}` | Retrieve paginated appointments for a doctor | `200 OK` |
+| `GET` | `/api/appointments/status/{status}` | Filter appointments by status (`PENDING`, `CONFIRMED`, etc.) | `200 OK` |
+| `PATCH` | `/api/appointments/{id}/cancel` | Cancel an active appointment (`?reason=...`) | `200 OK` |
+| `PATCH` | `/api/appointments/{id}/reschedule` | Reschedule an appointment to a new date and time | `200 OK` |
+| `PATCH` | `/api/appointments/{id}/status` | Update appointment status (`COMPLETED`, `REJECTED`, `NO_SHOW`) | `200 OK` |
 
 ---
 
@@ -880,9 +921,196 @@ curl -X DELETE http://localhost:8080/api/doctors/1/availability/1
 
 ---
 
+### 24. Book Appointment
+
+Books a clinical consultation. Validates doctor schedule, ensures the date is in the future, detects double bookings for both doctor and patient, and snapshots the consultation fee.
+
+- **URL:** `POST /api/appointments`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "patientId": 1,
+  "doctorId": 1,
+  "appointmentDate": "2026-11-23",
+  "startTime": "10:00:00",
+  "reason": "Chest pain and cardiovascular follow-up",
+  "notes": "Patient reports shortness of breath on exertion."
+}
+```
+
+#### Success Response (`201 Created`)
+```json
+{
+  "id": 1,
+  "patientId": 1,
+  "patientName": "Jane Doe",
+  "patientEmail": "jane.doe@example.com",
+  "patientPhone": "9876543210",
+  "doctorId": 1,
+  "doctorName": "Dr. John Watson",
+  "doctorSpecialization": "Cardiologist",
+  "departmentName": "Cardiology",
+  "appointmentDate": "2026-11-23",
+  "startTime": "10:00:00",
+  "endTime": "10:30:00",
+  "status": "CONFIRMED",
+  "reason": "Chest pain and cardiovascular follow-up",
+  "consultationFee": 1500.00,
+  "notes": "Patient reports shortness of breath on exertion.",
+  "createdAt": "2026-11-16T14:20:00",
+  "updatedAt": "2026-11-16T14:20:00"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patientId": 1,
+    "doctorId": 1,
+    "appointmentDate": "2026-11-23",
+    "startTime": "10:00:00",
+    "reason": "Chest pain and cardiovascular follow-up"
+  }'
+```
+
+---
+
+### 25. Get Appointment by ID
+
+Retrieves complete appointment details.
+
+- **URL:** `GET /api/appointments/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/appointments/1
+```
+
+---
+
+### 26. Get Appointments by Patient
+
+Retrieves paginated appointment history for a patient.
+
+- **URL:** `GET /api/appointments/patient/{patientId}?page=0&size=10`
+- **Path Parameter:** `patientId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/appointments/patient/1"
+```
+
+---
+
+### 27. Get Appointments by Doctor
+
+Retrieves paginated consultation schedule for a doctor.
+
+- **URL:** `GET /api/appointments/doctor/{doctorId}?page=0&size=10`
+- **Path Parameter:** `doctorId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/appointments/doctor/1"
+```
+
+---
+
+### 28. Filter Appointments by Status
+
+Retrieves appointments matching a specific lifecycle status (`PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `REJECTED`, `NO_SHOW`).
+
+- **URL:** `GET /api/appointments/status/{status}?page=0&size=10`
+- **Path Parameter:** `status` (e.g. `CONFIRMED`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/appointments/status/CONFIRMED"
+```
+
+---
+
+### 29. Cancel Appointment
+
+Cancels an active (`PENDING` or `CONFIRMED`) appointment.
+
+- **URL:** `PATCH /api/appointments/{id}/cancel`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Query Parameter:** `reason` (optional string)
+
+#### cURL Example
+```bash
+curl -X PATCH "http://localhost:8080/api/appointments/1/cancel?reason=Emergency+travel"
+```
+
+---
+
+### 30. Reschedule Appointment
+
+Moves an appointment to a new date and start time with full availability and overlap re-validation.
+
+- **URL:** `PATCH /api/appointments/{id}/reschedule`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "appointmentDate": "2026-11-24",
+  "startTime": "11:00:00",
+  "reason": "Requested afternoon slot"
+}
+```
+
+#### cURL Example
+```bash
+curl -X PATCH http://localhost:8080/api/appointments/1/reschedule \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appointmentDate": "2026-11-24",
+    "startTime": "11:00:00",
+    "reason": "Requested afternoon slot"
+  }'
+```
+
+---
+
+### 31. Update Appointment Status
+
+Allows medical or administrative staff to transition appointment state (`COMPLETED`, `REJECTED`, `NO_SHOW`).
+
+- **URL:** `PATCH /api/appointments/{id}/status`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "status": "COMPLETED",
+  "notes": "Consultation concluded successfully."
+}
+```
+
+#### cURL Example
+```bash
+curl -X PATCH http://localhost:8080/api/appointments/1/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "COMPLETED",
+    "notes": "Consultation concluded successfully."
+  }'
+```
+
+---
+
 ## 🔒 Validation Rules
 
-The application uses Jakarta Validation annotations on `PatientRequest`, `DepartmentRequest`, `DoctorRequest`, and `DoctorAvailabilityRequest`:
+The application uses Jakarta Validation annotations across all request models:
 
 ### Patient Validation (`PatientRequest`)
 
@@ -927,6 +1155,25 @@ The application uses Jakarta Validation annotations on `PatientRequest`, `Depart
 | `endTime` | `@NotNull` | `"End time is required"` (Must be after `startTime`) |
 | `slotDurationMinutes` | `@NotNull`, `@Min(10)`, `@Max(120)` | `"Slot duration in minutes is required"`, `"Slot duration must be between 10 and 120 minutes"` |
 | `isAvailable` | Optional (Boolean) | Defaults to `true` |
+
+### Appointment Booking Validation (`AppointmentBookingRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `patientId` | `@NotNull` | `"Patient ID is required"` |
+| `doctorId` | `@NotNull` | `"Doctor ID is required"` |
+| `appointmentDate` | `@NotNull`, `@FutureOrPresent` | `"Appointment date cannot be in the past"` |
+| `startTime` | `@NotNull` | `"Start time is required"` |
+| `reason` | `@NotBlank`, `@Size(max = 500)` | `"Reason for consultation is required"` |
+| `notes` | `@Size(max = 2000)` | `"Notes cannot exceed 2000 characters"` |
+
+### Appointment Reschedule Validation (`AppointmentRescheduleRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `appointmentDate` | `@NotNull`, `@FutureOrPresent` | `"New appointment date cannot be in the past"` |
+| `startTime` | `@NotNull` | `"New start time is required"` |
+| `reason` | `@Size(max = 500)` | Optional explanation |
 
 ---
 
@@ -1035,7 +1282,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 2 — Department Management:** CRUD, unique name check, fuzzy search, unit & MockMvc test suites.
 - [x] **Phase 3 — Doctor Management:** Doctor profiles, department relationships, pagination, multi-criteria filtering, unit & MockMvc test suites.
 - [x] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags, unit & MockMvc test suites.
-- [ ] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations.
+- [x] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations, status transitions, unit & MockMvc test suites.
 - [ ] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions.
 - [ ] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation.
 - [ ] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC).

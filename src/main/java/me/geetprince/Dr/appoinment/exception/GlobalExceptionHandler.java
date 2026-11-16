@@ -62,4 +62,38 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(errorResponse);
     }
+
+    // Handle appointment conflict / double booking (409)
+    @ExceptionHandler(AppointmentConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleAppointmentConflict(
+            AppointmentConflictException exception) {
+
+        Map<String, Object> errorResponse = Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.CONFLICT.value(),
+                "error", "Appointment Conflict",
+                "message", exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(errorResponse);
+    }
+
+    // Handle invalid appointment operation (400)
+    @ExceptionHandler(InvalidAppointmentException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidAppointment(
+            InvalidAppointmentException exception) {
+
+        Map<String, Object> errorResponse = Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.BAD_REQUEST.value(),
+                "error", "Invalid Appointment",
+                "message", exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
 }
