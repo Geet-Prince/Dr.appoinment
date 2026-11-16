@@ -20,6 +20,6 @@ COPY --from=builder /workspace/target/*.jar app.jar
 
 # Configuration
 EXPOSE 8080
-ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational"
+ENV JAVA_OPTS="-XX:+UseZGC"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
