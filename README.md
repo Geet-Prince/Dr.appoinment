@@ -25,6 +25,14 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [9. Get Department by ID](#9-get-department-by-id)
     - [10. Update Department](#10-update-department)
     - [11. Delete Department](#11-delete-department)
+  - [Doctor Management](#doctor-endpoints-apidoctors)
+    - [12. Register Doctor](#12-register-doctor)
+    - [13. Get All Doctors (Paginated)](#13-get-all-doctors-paginated)
+    - [14. Get Doctor by ID](#14-get-doctor-by-id)
+    - [15. Get Doctors by Department](#15-get-doctors-by-department)
+    - [16. Search Doctors (Multi-Criteria)](#16-search-doctors-multi-criteria)
+    - [17. Update Doctor](#17-update-doctor)
+    - [18. Delete Doctor](#18-delete-doctor)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -54,6 +62,12 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Search departments by name or keyword.
   - Update department details with collision checks.
   - Delete departments with existence verification.
+- **Comprehensive Doctor Management (CRUD, Pagination, Sorting & Multi-Criteria Search):**
+  - Register doctors linked to clinical departments with unique email and medical license checks.
+  - Paginated doctor listings with Spring Data `Pageable` and configurable sorting.
+  - Multi-criteria dynamic filtering by name, specialization, department ID, minimum experience, and maximum consultation fee.
+  - Retrieve doctors by department.
+  - Full profile updates and cascading-safe deletions.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -172,6 +186,18 @@ Dr.appoinment/
 | `GET` | `/api/departments/{id}` | Get department by ID | `200 OK` |
 | `PUT` | `/api/departments/{id}` | Update department details | `200 OK` |
 | `DELETE` | `/api/departments/{id}` | Delete a department by ID | `204 No Content` |
+
+### Doctor Endpoints (`/api/doctors`)
+
+| HTTP Method | Endpoint | Description | Status Code |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/doctors` | Register a new doctor | `201 Created` |
+| `GET` | `/api/doctors` | List doctors with pagination and sorting (`?page=0&size=10&sort=id`) | `200 OK` |
+| `GET` | `/api/doctors/{id}` | Retrieve doctor profile by ID | `200 OK` |
+| `GET` | `/api/doctors/department/{id}` | Retrieve all doctors in a specific department | `200 OK` |
+| `GET` | `/api/doctors/search` | Multi-criteria search (`?name=&specialization=&departmentId=&minExperience=&maxFee=`) | `200 OK` |
+| `PUT` | `/api/doctors/{id}` | Update doctor profile | `200 OK` |
+| `DELETE` | `/api/doctors/{id}` | Delete doctor profile by ID | `204 No Content` |
 
 ---
 
@@ -490,9 +516,187 @@ curl -X DELETE http://localhost:8080/api/departments/1
 
 ---
 
+### 12. Register Doctor
+
+Registers a new doctor and assigns them to an existing clinical department. Enforces uniqueness on email and medical license number.
+
+- **URL:** `POST /api/doctors`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "fullName": "Dr. John Watson",
+  "email": "dr.watson@hospital.com",
+  "phoneNumber": "9876543210",
+  "gender": "Male",
+  "specialization": "Cardiologist",
+  "qualification": "MBBS, MD Cardiology",
+  "experienceYears": 12,
+  "licenseNumber": "MED-LIC-1001",
+  "consultationFee": 1500.00,
+  "about": "Senior consultant in interventional cardiology and preventive cardiovascular health.",
+  "profileImageUrl": "https://images.hospital.com/doctors/watson.jpg",
+  "departmentId": 1
+}
+```
+
+#### Success Response (`201 Created`)
+```json
+{
+  "id": 1,
+  "fullName": "Dr. John Watson",
+  "email": "dr.watson@hospital.com",
+  "phoneNumber": "9876543210",
+  "gender": "Male",
+  "specialization": "Cardiologist",
+  "qualification": "MBBS, MD Cardiology",
+  "experienceYears": 12,
+  "licenseNumber": "MED-LIC-1001",
+  "consultationFee": 1500.00,
+  "about": "Senior consultant in interventional cardiology and preventive cardiovascular health.",
+  "profileImageUrl": "https://images.hospital.com/doctors/watson.jpg",
+  "departmentId": 1,
+  "departmentName": "Cardiology",
+  "createdAt": "2026-11-16T14:10:00",
+  "updatedAt": "2026-11-16T14:10:00"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/doctors \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Dr. John Watson",
+    "email": "dr.watson@hospital.com",
+    "phoneNumber": "9876543210",
+    "gender": "Male",
+    "specialization": "Cardiologist",
+    "qualification": "MBBS, MD Cardiology",
+    "experienceYears": 12,
+    "licenseNumber": "MED-LIC-1001",
+    "consultationFee": 1500.00,
+    "about": "Senior consultant in interventional cardiology.",
+    "profileImageUrl": "https://images.hospital.com/doctors/watson.jpg",
+    "departmentId": 1
+  }'
+```
+
+---
+
+### 13. Get All Doctors (Paginated)
+
+Retrieves a paginated list of doctors with configurable page index, page size, and sorting field.
+
+- **URL:** `GET /api/doctors?page=0&size=10&sort=experienceYears,desc`
+- **Query Parameters:**
+  - `page` (optional, default: `0`)
+  - `size` (optional, default: `10`)
+  - `sort` (optional, default: `id,asc`)
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/doctors?page=0&size=10&sort=experienceYears,desc"
+```
+
+---
+
+### 14. Get Doctor by ID
+
+Retrieves complete doctor profile with department details.
+
+- **URL:** `GET /api/doctors/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/doctors/1
+```
+
+---
+
+### 15. Get Doctors by Department
+
+Retrieves all doctors affiliated with a specific department.
+
+- **URL:** `GET /api/doctors/department/{departmentId}`
+- **Path Parameter:** `departmentId` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/doctors/department/1
+```
+
+---
+
+### 16. Search Doctors (Multi-Criteria)
+
+Performs dynamic search across 5 optional filter criteria with pagination. Ideal for user searches and chatbot tool invocations.
+
+- **URL:** `GET /api/doctors/search`
+- **Query Parameters:**
+  - `name`: Partial doctor name (e.g. `watson`)
+  - `specialization`: Case-insensitive specialization (e.g. `Cardiologist`)
+  - `departmentId`: Department ID (e.g. `1`)
+  - `minExperience`: Minimum years of clinical experience (e.g. `5`)
+  - `maxFee`: Maximum consultation fee (e.g. `2000.00`)
+  - `page`, `size`, `sort`: Standard pagination
+
+#### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/doctors/search?specialization=Cardiologist&maxFee=2000.00&minExperience=5"
+```
+
+---
+
+### 17. Update Doctor
+
+Updates doctor profile, qualifications, fees, or affiliated department.
+
+- **URL:** `PUT /api/doctors/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+- **Headers:** `Content-Type: application/json`
+
+#### cURL Example
+```bash
+curl -X PUT http://localhost:8080/api/doctors/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Dr. John Watson",
+    "email": "dr.watson@hospital.com",
+    "phoneNumber": "9876543210",
+    "gender": "Male",
+    "specialization": "Senior Cardiologist",
+    "qualification": "MBBS, MD, FACC",
+    "experienceYears": 15,
+    "licenseNumber": "MED-LIC-1001",
+    "consultationFee": 1800.00,
+    "about": "Chief of interventional cardiology.",
+    "profileImageUrl": "https://images.hospital.com/doctors/watson.jpg",
+    "departmentId": 1
+  }'
+```
+
+---
+
+### 18. Delete Doctor
+
+Deletes doctor profile by ID.
+
+- **URL:** `DELETE /api/doctors/{id}`
+- **Path Parameter:** `id` (Long, e.g., `1`)
+
+#### cURL Example
+```bash
+curl -X DELETE http://localhost:8080/api/doctors/1
+```
+
+---
+
 ## 🔒 Validation Rules
 
-The application uses Jakarta Validation annotations on `PatientRequest` and `DepartmentRequest`:
+The application uses Jakarta Validation annotations on `PatientRequest`, `DepartmentRequest`, and `DoctorRequest`:
 
 ### Patient Validation (`PatientRequest`)
 
@@ -510,6 +714,23 @@ The application uses Jakarta Validation annotations on `PatientRequest` and `Dep
 | :--- | :--- | :--- |
 | `name` | `@NotBlank`, `@Size(min = 2, max = 100)` | `"Department name is required"`, `"Department name must be between 2 and 100 characters"` |
 | `description` | `@Size(max = 1000)` | `"Description must not exceed 1000 characters"` |
+
+### Doctor Validation (`DoctorRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `fullName` | `@NotBlank`, `@Size(min = 2, max = 150)` | `"Doctor full name is required"` |
+| `email` | `@NotBlank`, `@Email` | `"Email is required"`, `"Invalid email format"` |
+| `phoneNumber` | `@NotBlank`, `@Pattern(regexp = "^[0-9]{10,15}$")` | `"Phone number is required"`, `"Phone number must contain 10 to 15 digits"` |
+| `gender` | `@NotBlank` | `"Gender is required"` |
+| `specialization` | `@NotBlank` | `"Specialization is required"` |
+| `qualification` | `@NotBlank` | `"Qualification is required"` |
+| `experienceYears` | `@NotNull`, `@PositiveOrZero` | `"Experience in years is required"`, `"Experience years cannot be negative"` |
+| `licenseNumber` | `@NotBlank` | `"Medical license number is required"` |
+| `consultationFee` | `@NotNull`, `@DecimalMin("0.00")` | `"Consultation fee is required"`, `"Consultation fee cannot be negative"` |
+| `about` | `@Size(max = 2000)` | `"About text cannot exceed 2000 characters"` |
+| `profileImageUrl` | `@Size(max = 500)` | `"Profile image URL cannot exceed 500 characters"` |
+| `departmentId` | `@NotNull` | `"Department ID is required"` |
 
 ---
 
@@ -616,7 +837,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 
 - [x] **Phase 1 — Patient Management:** CRUD, unique constraints, DTO separation, validation.
 - [x] **Phase 2 — Department Management:** CRUD, unique name check, fuzzy search, unit & MockMvc test suites.
-- [ ] **Phase 3 — Doctor Management:** Doctor profiles, department relationships, pagination, multi-criteria filtering.
+- [x] **Phase 3 — Doctor Management:** Doctor profiles, department relationships, pagination, multi-criteria filtering, unit & MockMvc test suites.
 - [ ] **Phase 4 — Doctor Availability:** Weekly consultation schedules, slots generation, unavailable day flags.
 - [ ] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations.
 - [ ] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions.
