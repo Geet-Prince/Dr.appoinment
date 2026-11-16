@@ -68,6 +68,8 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [46. Register User](#46-register-user)
     - [47. Login & Obtain JWT Token](#47-login--obtain-jwt-token)
     - [48. Get Current Authenticated User](#48-get-current-authenticated-user)
+  - [AI Conversational Assistant](#ai-conversational-assistant-endpoints-apichat)
+    - [49. Chat with AI Healthcare Assistant](#49-chat-with-ai-healthcare-assistant)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -138,8 +140,16 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Unified error responses for `404 Not Found` (ResourceNotFoundException), `409 Conflict` (DuplicateResourceException), and input validation errors.
 - **Layered Architecture:**
   - Clean separation of concerns across Controllers, Services, Repositories, DTOs, and Entities.
-- **Spring AI & Google Gemini Integration Setup:**
-  - Configured with `spring-ai-starter-model-google-genai` and Spring AI 2.0.1 BOM for upcoming generative AI capabilities.
+- **Spring AI & Google Gemini Conversational Healthcare Assistant:**
+  - Integrated with **Google GenAI (Gemini)** via Spring AI's modern `ChatClient` fluent architecture.
+  - Multi-turn conversational memory via `MessageWindowChatMemory` and `MessageChatMemoryAdvisor` per session/conversation ID.
+  - Real-time Function Calling (`@Tool`) invoking backend Java services directly:
+    - `searchDoctors`: Discover doctors by medical specialization or keyword.
+    - `getDoctorProfile`: Fetch comprehensive doctor qualifications, fees, and bio.
+    - `checkDoctorAvailability`: Query open consultation intervals on calendar dates.
+    - `bookAppointment`: Book clinical consultations on behalf of patients with validation.
+    - `getPatientAppointments`: Check upcoming consultation schedules.
+  - Strict medical safety guardrails: Emergency redirection (911/ER), zero diagnostic advice or medication prescription, and explicit appointment confirmation before booking.
 - **Database & Persistence:**
   - PostgreSQL integration with Hibernate auto-schema management (`ddl-auto=update`) and formatted SQL logging.
 - **Spring Security Baseline:**
@@ -1564,6 +1574,55 @@ curl -X GET http://localhost:8080/api/auth/me \
 
 ---
 
+## 🤖 AI Conversational Assistant Endpoints (`/api/chat`)
+
+### 49. Chat with AI Healthcare Assistant
+
+Engages with the Google Gemini-powered healthcare chatbot. The assistant provides natural conversation, remembers past context using `conversationId`, searches doctors, checks schedules, and books appointments using Spring AI `@Tool` function calling.
+
+- **URL:** `POST /api/chat`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "message": "Hi, I have a mild heart murmur and want to see a cardiologist next Monday.",
+  "conversationId": "session-patient-101"
+}
+```
+
+> **Note:** If `conversationId` is omitted, the assistant will automatically generate and track a new session UUID.
+
+#### Success Response (`200 OK`)
+```json
+{
+  "response": "Hello! I can certainly help you with that. We have Dr. John Watson, a highly experienced Cardiologist at our hospital. Would you like me to check his available consultation slots for Monday, November 23rd?",
+  "conversationId": "session-patient-101",
+  "timestamp": "2026-11-16T14:55:00"
+}
+```
+
+#### Booking via Chat Example (Multi-turn Tool Calling)
+```bash
+curl -X POST http://localhost:8080/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Yes, please book the 10:00 AM slot on 2026-11-23 with Dr. Watson for patient ID 1.",
+    "conversationId": "session-patient-101"
+  }'
+```
+
+#### Example Output:
+```json
+{
+  "response": "Your appointment has been successfully confirmed with Dr. John Watson on Monday, November 23, 2026, at 10:00:00. Your Appointment ID is 10 and the consultation fee is 1500.00. Please let me know if you need anything else!",
+  "conversationId": "session-patient-101",
+  "timestamp": "2026-11-16T14:55:05"
+}
+```
+
+---
+
 ## 🔒 Validation Rules
 
 The application uses Jakarta Validation annotations across all request models:
@@ -1669,6 +1728,13 @@ The application uses Jakarta Validation annotations across all request models:
 | :--- | :--- | :--- |
 | `email` | `@NotBlank`, `@Email` | `"Email is required"`, `"Invalid email format"` |
 | `password` | `@NotBlank` | `"Password is required"` |
+
+### AI Chat Request Validation (`ChatRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `message` | `@NotBlank`, `@Size(max = 2000)` | `"Message cannot be empty"`, `"Message cannot exceed 2000 characters"` |
+| `conversationId` | Optional (String) | Client-defined session ID (auto-generated if omitted) |
 
 ---
 
@@ -1781,7 +1847,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions, completed status enforcement, unit & MockMvc test suites.
 - [x] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation, unit & MockMvc test suites.
 - [x] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC), unit & MockMvc test suites.
-- [ ] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation.
+- [x] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation, unit & MockMvc test suites.
 - [ ] **Phase 10 — Notifications & Enhancements:** Automated email/SMS reminders, Dockerization.
 
 ---

@@ -39,8 +39,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public authentication endpoints
+                        // Public authentication & chatbot endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/chat/**").permitAll()
 
                         // Public browsing endpoints (Department & Doctor info, available schedules & reviews)
                         .requestMatchers(HttpMethod.GET, "/api/departments/**").permitAll()
