@@ -26,11 +26,17 @@ public class ChatService {
 
         log.info("Processing chat request for conversationId='{}'", conversationId);
 
-        String reply = chatClient.prompt()
-                .user(request.getMessage())
-                .advisors(advisorSpec -> advisorSpec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, conversationId))
-                .call()
-                .content();
+        String reply;
+        try {
+            reply = chatClient.prompt()
+                    .user(request.getMessage())
+                    .advisors(advisorSpec -> advisorSpec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, conversationId))
+                    .call()
+                    .content();
+        } catch (Exception ex) {
+            log.error("Error communicating with AI service: ", ex);
+            reply = "I apologize, but I am currently having trouble connecting to the Gemini AI service. Please ensure that a valid GEMINI_API_KEY is configured.";
+        }
 
         if (reply == null || reply.trim().isEmpty()) {
             reply = "I apologize, but I could not generate a response. How else may I assist you with your hospital appointment?";

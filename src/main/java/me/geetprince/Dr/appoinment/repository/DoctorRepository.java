@@ -27,14 +27,14 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     List<Doctor> findByDepartmentId(Long departmentId);
 
     @Query(value = "SELECT d FROM Doctor d JOIN FETCH d.department dep WHERE " +
-            "(:name IS NULL OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-            "(:specialization IS NULL OR LOWER(d.specialization) = LOWER(:specialization)) AND " +
+            "(CAST(:name AS string) IS NULL OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%'))) AND " +
+            "(CAST(:specialization AS string) IS NULL OR LOWER(d.specialization) = LOWER(CAST(:specialization AS string))) AND " +
             "(:departmentId IS NULL OR dep.id = :departmentId) AND " +
             "(:minExperience IS NULL OR d.experienceYears >= :minExperience) AND " +
             "(:maxFee IS NULL OR d.consultationFee <= :maxFee)",
             countQuery = "SELECT count(d) FROM Doctor d WHERE " +
-            "(:name IS NULL OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-            "(:specialization IS NULL OR LOWER(d.specialization) = LOWER(:specialization)) AND " +
+            "(CAST(:name AS string) IS NULL OR LOWER(d.fullName) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%'))) AND " +
+            "(CAST(:specialization AS string) IS NULL OR LOWER(d.specialization) = LOWER(CAST(:specialization AS string))) AND " +
             "(:departmentId IS NULL OR d.department.id = :departmentId) AND " +
             "(:minExperience IS NULL OR d.experienceYears >= :minExperience) AND " +
             "(:maxFee IS NULL OR d.consultationFee <= :maxFee)")

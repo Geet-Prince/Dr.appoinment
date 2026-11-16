@@ -32,7 +32,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dr_appointment
       DB_USERNAME: ${DB_USERNAME:-geet}
       DB_PASSWORD: ${DB_PASSWORD:-0}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-your_api_key_here}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      SPRING_AI_GOOGLE_GENAI_API_KEY: ${GEMINI_API_KEY}
+      SPRING_AI_GOOGLE_GENAI_CHAT_OPTIONS_MODEL: gemini-3.5-flash-lite
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
 
 volumes:
