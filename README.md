@@ -64,6 +64,10 @@ A robust, modern healthcare backend application built with **Spring Boot 4**, **
     - [43. Get Reviews by Patient](#43-get-reviews-by-patient)
     - [44. Update Review](#44-update-review)
     - [45. Delete Review](#45-delete-review)
+  - [Authentication & User Management](#authentication-endpoints-apiauth)
+    - [46. Register User](#46-register-user)
+    - [47. Login & Obtain JWT Token](#47-login--obtain-jwt-token)
+    - [48. Get Current Authenticated User](#48-get-current-authenticated-user)
 - [Validation Rules](#-validation-rules)
 - [Error Handling](#-error-handling)
 - [Configuration & Setup](#-configuration--setup)
@@ -122,6 +126,12 @@ The **Dr. Appointment** system provides a clean, modular, and scalable RESTful A
   - Real-time aggregated doctor rating analytics (average score rounded to 2 decimals, total reviews count).
   - Paginated review listings by doctor and by patient.
   - Update and delete operations for review content.
+- **Enterprise Authentication & RBAC Security:**
+  - User registration and login with BCrypt password hashing.
+  - Stateless JSON Web Token (JWT) issuing, signed with HMAC-SHA256.
+  - Role-Based Access Control (RBAC) supporting `PATIENT`, `DOCTOR`, `RECEPTIONIST`, and `ADMIN` roles.
+  - Interceptor security filter (`JwtAuthenticationFilter`) validating bearer tokens and establishing `SecurityContext`.
+  - Sensitive password redaction across all DTO responses.
 - **Robust Input Validation:**
   - Strict validation using Jakarta Validation (`@NotBlank`, `@Email`, `@Pattern`, `@Min`, `@Max`, `@NotNull`).
 - **Centralized Global Exception Handling:**
@@ -1444,6 +1454,116 @@ curl -X DELETE http://localhost:8080/api/reviews/1
 
 ---
 
+## 🔐 Authentication Endpoints (`/api/auth`)
+
+### 46. Register User
+
+Registers a new user account with BCrypt-hashed password security and returns an access JWT token.
+
+- **URL:** `POST /api/auth/register`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "email": "jane.doe@example.com",
+  "password": "SecurePassword123!",
+  "role": "PATIENT"
+}
+```
+
+> **Roles Supported:** `PATIENT`, `DOCTOR`, `RECEPTIONIST`, `ADMIN`
+
+#### Success Response (`201 Created`)
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqYW5lLmRvZUBleGFtcGxlLmNvbSIsImF1dGgiOiJST0xFX1BBVElFTlQiLCJpYXQiOjE3MzE3NDYwMDAsImV4cCI6MTczMTgzMjQwMH0...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400000,
+  "userId": 1,
+  "email": "jane.doe@example.com",
+  "role": "PATIENT"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "jane.doe@example.com",
+    "password": "SecurePassword123!",
+    "role": "PATIENT"
+  }'
+```
+
+---
+
+### 47. Login & Obtain JWT Token
+
+Authenticates credentials and issues a signed JWT Bearer token valid for 24 hours.
+
+- **URL:** `POST /api/auth/login`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "email": "jane.doe@example.com",
+  "password": "SecurePassword123!"
+}
+```
+
+#### Success Response (`200 OK`)
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqYW5lLmRvZUBleGFtcGxlLmNvbSIsImF1dGgiOiJST0xFX1BBVElFTlQiLCJpYXQiOjE3MzE3NDYwMDAsImV4cCI6MTczMTgzMjQwMH0...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400000,
+  "userId": 1,
+  "email": "jane.doe@example.com",
+  "role": "PATIENT"
+}
+```
+
+#### cURL Example
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "jane.doe@example.com",
+    "password": "SecurePassword123!"
+  }'
+```
+
+---
+
+### 48. Get Current Authenticated User
+
+Retrieves identity details of the user extracted from the supplied JWT Bearer token.
+
+- **URL:** `GET /api/auth/me`
+- **Headers:** `Authorization: Bearer <token>`
+
+#### Success Response (`200 OK`)
+```json
+{
+  "id": 1,
+  "email": "jane.doe@example.com",
+  "role": "PATIENT",
+  "enabled": true,
+  "createdAt": "2026-11-16T14:40:00"
+}
+```
+
+#### cURL Example
+```bash
+curl -X GET http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+---
+
 ## 🔒 Validation Rules
 
 The application uses Jakarta Validation annotations across all request models:
@@ -1534,6 +1654,21 @@ The application uses Jakarta Validation annotations across all request models:
 | :--- | :--- | :--- |
 | `rating` | `@NotNull`, `@Min(1)`, `@Max(5)` | `"Rating is required"`, `"Rating must be at least 1"`, `"Rating cannot exceed 5"` |
 | `comment` | `@Size(max = 2000)` | `"Comment cannot exceed 2000 characters"` |
+
+### User Registration Validation (`RegisterRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `email` | `@NotBlank`, `@Email` | `"Email is required"`, `"Invalid email format"` |
+| `password` | `@NotBlank`, `@Size(min = 6, max = 50)` | `"Password is required"`, `"Password must be between 6 and 50 characters"` |
+| `role` | `@NotNull` | `"Role is required"` (`PATIENT`, `DOCTOR`, `RECEPTIONIST`, `ADMIN`) |
+
+### User Login Validation (`LoginRequest`)
+
+| Field | Constraints | Error Message |
+| :--- | :--- | :--- |
+| `email` | `@NotBlank`, `@Email` | `"Email is required"`, `"Invalid email format"` |
+| `password` | `@NotBlank` | `"Password is required"` |
 
 ---
 
@@ -1645,7 +1780,7 @@ spring.ai.google.genai.api-key=${GEMINI_API_KEY:your_api_key_here}
 - [x] **Phase 5 — Appointment Scheduling Engine:** Concurrency-safe slot booking, rescheduling, cancellations, status transitions, unit & MockMvc test suites.
 - [x] **Phase 6 — Prescription Management:** Post-consultation diagnoses, medicines, instructions, completed status enforcement, unit & MockMvc test suites.
 - [x] **Phase 7 — Review & Rating:** Verified reviews for completed appointments, rating aggregation, unit & MockMvc test suites.
-- [ ] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC).
+- [x] **Phase 8 — Authentication & Authorization:** Spring Security, BCrypt, JWT, Role-Based Access Control (RBAC), unit & MockMvc test suites.
 - [ ] **Phase 9 — AI Healthcare Assistant (Google Gemini):** Spring AI ChatClient, tools calling, session isolation.
 - [ ] **Phase 10 — Notifications & Enhancements:** Automated email/SMS reminders, Dockerization.
 
